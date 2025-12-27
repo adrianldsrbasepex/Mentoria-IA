@@ -1,0 +1,8 @@
+{
+  "name": "Mentoria IA - Plataforma de Mentoria Inteligente",
+  "description": "Uma plataforma de mentoria educacional de alta performance inspirada no design da Nubank, utilizando IA para processar editais e criar cronogramas adaptativos.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

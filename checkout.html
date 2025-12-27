@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkout Seguro - PagBank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SDK Oficial do PagSeguro para Criptografia -->
+    <script src="https://assets.pagseguro.com.br/checkout-sdk-js/rc/dist/browser/pagseguro.min.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Pagamento com Cartão</h2>
+        
+        <form id="paymentForm" class="space-y-4">
+            <!-- Dados do Cliente -->
+            <input type="text" id="custName" placeholder="Nome Completo" class="w-full p-3 border rounded-xl" required>
+            <input type="email" id="custEmail" placeholder="E-mail" class="w-full p-3 border rounded-xl" required>
+            <input type="text" id="custTaxId" placeholder="CPF" class="w-full p-3 border rounded-xl" required>
+
+            <!-- Dados do Cartão -->
+            <div class="pt-4 border-t">
+                <input type="text" id="cardNumber" placeholder="Número do Cartão" class="w-full p-3 border rounded-xl mb-3" required>
+                <div class="flex gap-3">
+                    <input type="text" id="cardExpiry" placeholder="MM/AA" class="w-1/2 p-3 border rounded-xl" required>
+                    <input type="text" id="cardCVV" placeholder="CVV" class="w-1/2 p-3 border rounded-xl" required>
+                </div>
+            </div>
+
+            <button type="submit" id="btnPay" class="w-full bg-purple-600 text-white font-bold py-4 rounded-xl hover:bg-purple-700 transition">
+                Pagar Agora
+            </button>
+        </form>
+        <p id="msg" class="mt-4 text-center font-medium"></p>
+    </div>
+
+    <script>
+        // ATENÇÃO: Obtenha sua Public Key no Painel do PagBank
+        const PUBLIC_KEY = "SUA_CHAVE_PUBLICA_AQUI";
+
+        document.getElementById('paymentForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnPay');
+            const msg = document.getElementById('msg');
+            
+            btn.disabled = true;
+            btn.innerText = "Criptografando...";
+
+            try {
+                // 1. Instanciar o SDK
+                const pg = PagSeguro.encryptCard({
+                    publicKey: PUBLIC_KEY,
+                    holder: document.getElementById('custName').value,
+                    number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+                    expMonth: document.getElementById('cardExpiry').value.split('/')[0],
+                    expYear: "20" + document.getElementById('cardExpiry').value.split('/')[1],
+                    securityCode: document.getElementById('cardCVV').value
+                });
+
+                if (pg.errors) {
+                    console.error(pg.errors);
+                    throw new Error("Dados do cartão inválidos.");
+                }
+
+                const encryptedCard = pg.encryptedCard;
+                btn.innerText = "Processando Pagamento...";
+
+                // 2. Enviar para o seu Backend
+                const response = await fetch('http://localhost:3000/api/pay-pagbank', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        encryptedCard: encryptedCard,
+                        externalId: "ALUNO_123_PROD_456", // ID do seu banco
+                        amount: 15900, // R$ 159,00
+                        description: "Plano Premium Mentoria IA",
+                        customer: {
+                            name: document.getElementById('custName').value,
+                            email: document.getElementById('custEmail').value,
+                            taxId: document.getElementById('custTaxId').value,
+                            phone: "11999999999"
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    msg.className = "mt-4 text-center text-green-600 font-bold";
+                    msg.innerText = result.message;
+                } else {
+                    throw new Error(result.message || "Erro no processamento.");
+                }
+
+            } catch (err) {
+                msg.className = "mt-4 text-center text-red-600 font-bold";
+                msg.innerText = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Pagar Agora";
+            }
+        };
+    </script>
+</body>
+</html>
